@@ -1,5 +1,5 @@
 diff --git a/dist/ImageViewing.js b/dist/ImageViewing.js
-index 3d7641a9a94864415d207c678b71f8c592c90aa1..9666461b9395646e782cb55b13bc566951f7da23 100644
+index 3d7641a..7b63722 100644
 --- a/dist/ImageViewing.js
 +++ b/dist/ImageViewing.js
 @@ -6,7 +6,7 @@
@@ -27,7 +27,7 @@ index 3d7641a9a94864415d207c678b71f8c592c90aa1..9666461b9395646e782cb55b13bc5669
      const [headerTransform, footerTransform, toggleBarsVisible] = useAnimatedComponents();
      useEffect(() => {
          if (onImageIndexChange) {
-@@ -33,7 +35,7 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
+@@ -33,19 +35,20 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
          // @ts-ignore
          (_b = (_a = imageList) === null || _a === void 0 ? void 0 : _a.current) === null || _b === void 0 ? void 0 : _b.setNativeProps({ scrollEnabled: !isScaled });
          toggleBarsVisible(!isScaled);
@@ -36,13 +36,18 @@ index 3d7641a9a94864415d207c678b71f8c592c90aa1..9666461b9395646e782cb55b13bc5669
      if (!visible) {
          return null;
      }
-@@ -45,7 +47,8 @@ function ImageViewing({ images, keyExtractor, imageIndex, visible, onRequestClos
+     return (<Modal transparent={presentationStyle === "overFullScreen"} visible={visible} presentationStyle={presentationStyle} animationType={animationType} onRequestClose={onRequestCloseEnhanced} supportedOrientations={["portrait"]} hardwareAccelerated>
+       <StatusBarManager presentationStyle={presentationStyle}/>
+-      <View style={[styles.container, { opacity, backgroundColor }]}>
++      {/* Reset Android image gestures and controls when the available window changes. */}
++      <View key={Platform.OS === "android" ? `${viewport.width}:${viewport.height}` : undefined} style={[styles.container, { opacity, backgroundColor }]}>
+         <Animated.View style={[styles.header, { transform: headerTransform }]}>
+           {typeof HeaderComponent !== "undefined" ? (React.createElement(HeaderComponent, {
          imageIndex: currentImageIndex,
      })) : (<ImageDefaultHeader onRequestClose={onRequestCloseEnhanced}/>)}
          </Animated.View>
 -        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={imageIndex} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
-+        {/* Reset Android zoom and scroll state when the available window changes. */}
-+        <VirtualizedList key={Platform.OS === "android" ? `${viewport.width}:${viewport.height}` : undefined} ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={currentImageIndex} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
++        <VirtualizedList ref={imageList} data={images} horizontal pagingEnabled windowSize={2} initialNumToRender={1} maxToRenderPerBatch={1} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} initialScrollIndex={currentImageIndex} getItem={(_, index) => images[index]} getItemCount={() => images.length} getItemLayout={(_, index) => ({
          length: SCREEN_WIDTH,
          offset: SCREEN_WIDTH * index,
          index,
