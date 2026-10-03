@@ -17,6 +17,7 @@ import { parseTurnDiffFilesFromNumstat } from "./Diffs.ts";
 import * as CheckpointStore from "./CheckpointStore.ts";
 import * as CheckpointDiffQuery from "./CheckpointDiffQuery.ts";
 import { checkpointRefForScopeOrdinal } from "../orchestration-v2/CheckpointService.ts";
+import { OrchestratorProjectionError } from "../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagement from "../orchestration-v2/ThreadManagementService.ts";
 import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
@@ -168,6 +169,7 @@ it.layer(TestLayer)("CheckpointStore.layer", (it) => {
           Layer.provide(Layer.succeed(CheckpointStore.CheckpointStore, store)),
           Layer.provide(
             Layer.mock(ThreadManagement.ThreadManagementService)({
+              getThreadRecords: () => Effect.fail(new OrchestratorProjectionError({ threadId })),
               getCheckpointContext: () =>
                 Effect.succeed({
                   runs: [{ id: runId, ordinal: 1, status: "completed" }],

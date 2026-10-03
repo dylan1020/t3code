@@ -189,12 +189,53 @@ export const make = Effect.gen(function* () {
         fallbackFromToHead: false,
         ignoreWhitespace,
       };
+      // Capture attributes only the previous checkpoint in this scope, not arbitrary turn ranges.
+      const fromScopeId =
+        input.fromTurnCount === 0
+          ? projection.checkpointScopes.find((scope) => scope.kind === "root_run")?.id
+          : readyCheckpoints.find((checkpoint) => checkpoint.appRunOrdinal === input.fromTurnCount)
+              ?.scopeId;
+      const summary =
+        input.includeGitChanges !== undefined &&
+        input.toTurnCount === input.fromTurnCount + 1 &&
+        fromScopeId === toScope.id
+          ? yield* threads
+              .getThreadRecords(input.threadId, ["checkpoints"], {
+                checkpointRefs: [toCheckpoint.ref],
+              })
+              .pipe(
+                Effect.map(({ checkpoints }) =>
+                  checkpoints.find(
+                    (checkpoint) =>
+                      checkpoint.status === "ready" &&
+                      checkpoint.scopeId === toScope.id &&
+                      checkpoint.appRunOrdinal === input.toTurnCount &&
+                      checkpoint.ref === toCheckpoint.ref &&
+                      checkpoint.ordinalWithinScope > 0 &&
+                      checkpointRefForScopeOrdinal({
+                        scopeId: checkpoint.scopeId,
+                        ordinalWithinScope: checkpoint.ordinalWithinScope - 1,
+                      }) === fromCheckpointRef &&
+                      checkpointRefForScopeOrdinal({
+                        scopeId: checkpoint.scopeId,
+                        ordinalWithinScope: checkpoint.ordinalWithinScope,
+                      }) === toCheckpoint.ref,
+                  ),
+                ),
+                Effect.orElseSucceed(() => undefined),
+              )
+          : undefined;
+      const storedGitPaths = summary?.files
+        .filter((file) => file.origin === "git")
+        .map((file) => file.path);
       const gitPaths =
         input.includeGitChanges === undefined
           ? []
-          : yield* checkpointStore
-              .getGitChangedPaths(comparison)
-              .pipe(Effect.catch(() => Effect.succeed([])));
+          : storedGitPaths && storedGitPaths.length > 0
+            ? storedGitPaths
+            : yield* checkpointStore
+                .getGitChangedPaths(comparison)
+                .pipe(Effect.catch(() => Effect.succeed([])));
       const files =
         gitPaths.length === 0
           ? []
