@@ -23,19 +23,19 @@ import * as VcsDriverRegistry from "../vcs/VcsDriverRegistry.ts";
 import * as VcsProcess from "../vcs/VcsProcess.ts";
 import * as ServerConfig from "../config.ts";
 
-const ServerConfigLayer = ServerConfig.ServerConfig.layerTest(process.cwd(), {
+const layerServerConfig = ServerConfig.ServerConfig.layerTest(process.cwd(), {
   prefix: "t3-checkpoint-store-test-",
 });
-const VcsProcessTestLayer = VcsProcess.layer.pipe(Layer.provide(NodeServices.layer));
-const VcsDriverTestLayer = VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcessTestLayer));
-const CheckpointStoreTestLayer = CheckpointStore.layer.pipe(
-  Layer.provideMerge(VcsDriverTestLayer),
+const layerVcsProcessTest = VcsProcess.layer.pipe(Layer.provide(NodeServices.layer));
+const layerVcsDriverTest = VcsDriverRegistry.layer.pipe(Layer.provide(layerVcsProcessTest));
+const layerCheckpointStoreTest = CheckpointStore.layer.pipe(
+  Layer.provideMerge(layerVcsDriverTest),
   Layer.provideMerge(NodeServices.layer),
 );
-const TestLayer = CheckpointStoreTestLayer.pipe(
-  Layer.provideMerge(VcsProcessTestLayer),
-  Layer.provideMerge(VcsDriverTestLayer),
-  Layer.provideMerge(ServerConfigLayer),
+const layerTest = layerCheckpointStoreTest.pipe(
+  Layer.provideMerge(layerVcsProcessTest),
+  Layer.provideMerge(layerVcsDriverTest),
+  Layer.provideMerge(layerServerConfig),
   Layer.provideMerge(NodeServices.layer),
 );
 
@@ -98,9 +98,10 @@ function buildLargeText(lineCount = 5_000): string {
     .concat("\n");
 }
 
-it.layer(TestLayer)("CheckpointStore.layer", (it) => {
-  for (const history of ["legacy metadata", "HEAD-only metadata", "amended HEAD"] as const) {
-    it.effect(`keeps the full workspace delta with ${history}`, () =>
+it.layer(layerTest)("CheckpointStore.layer", (it) => {
+  it.effect.each(["legacy metadata", "HEAD-only metadata", "amended HEAD"] as const)(
+    "keeps the full workspace delta with %s",
+    (history) =>
       Effect.gen(function* () {
         const cwd = yield* makeTmpDir();
         yield* initRepoWithCommit(cwd);
@@ -134,8 +135,7 @@ it.layer(TestLayer)("CheckpointStore.layer", (it) => {
         expect(patch).toContain("+upstream");
         expect(patch).toContain("+workspace fix");
       }),
-    );
-  }
+  );
 
   it.effect(
     "returns complete retained renames before an imported patch exceeds the output cap",
